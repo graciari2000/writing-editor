@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
+import { auth } from "../firebaseConfig";
+import { signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from "firebase/auth";
 
 export type Idea = {
     id: string;
@@ -48,6 +50,10 @@ interface AppState {
     openDocument: (id: string) => void;
     updateCurrentDocument: (content: string) => void;
     saveVersion: (description: string) => void;
+
+    login: (email: string, password: string) => Promise<void>;
+    logout: () => Promise<void>;
+    register: (email: string, password: string) => Promise<void>;
 }
 
 export const useAppStore = create<AppState>()(
@@ -158,6 +164,35 @@ export const useAppStore = create<AppState>()(
                     )
                 };
             }),
+
+            login: async (email, password) => {
+                try {
+                    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                    const user = userCredential.user;
+                    set({ currentUser: { name: user.email || "User", avatar: "" } });
+                } catch (error) {
+                    console.error("Login failed", error);
+                }
+            },
+
+            logout: async () => {
+                try {
+                    await signOut(auth);
+                    set({ currentUser: { name: "Guest", avatar: "" } });
+                } catch (error) {
+                    console.error("Logout failed", error);
+                }
+            },
+
+            register: async (email, password) => {
+                try {
+                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                    const user = userCredential.user;
+                    set({ currentUser: { name: user.email || "User", avatar: "" } });
+                } catch (error) {
+                    console.error("Registration failed", error);
+                }
+            },
         }),
         {
             name: 'novel-writer-storage',

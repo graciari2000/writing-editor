@@ -7,10 +7,14 @@ import {
     Undo, Redo, Save, User, Feather, FilePlus, FolderOpen, Download, LogOut, ChevronDown
 } from 'lucide-react';
 import clsx from 'clsx';
+import { saveDocumentAsDoc } from "../../store/saveAsDoc";
+import UserMenu from "./UserMenu";
 
 const Ribbon: React.FC = () => {
-    const { activeRibbonTab, setActiveRibbonTab, toggleSidebar, sidebarOpen, saveVersion, currentUser, createDocument } = useAppStore();
+    const { activeRibbonTab, setActiveRibbonTab, toggleSidebar, sidebarOpen, saveVersion, currentUser, createDocument, documents, currentDocumentId } = useAppStore();
     const { editor } = useEditorContext();
+
+    const currentDoc = documents.find((doc) => doc.id === currentDocumentId);
 
     if (!editor) return null;
 
@@ -83,17 +87,7 @@ const Ribbon: React.FC = () => {
                 </div>
 
                 {/* User Profile */}
-                <div className="flex items-center gap-2 px-2 py-1 hover:bg-slate-700 rounded cursor-pointer transition-colors" title="User Profile">
-                    <div className="w-6 h-6 rounded-full bg-slate-600 flex items-center justify-center text-xs font-bold border border-slate-500">
-                        {currentUser?.avatar ? (
-                            <img src={currentUser.avatar} alt="User" className="w-full h-full rounded-full" />
-                        ) : (
-                            <User size={14} />
-                        )}
-                    </div>
-                    <span className="text-xs font-medium">{currentUser?.name || 'Guest'}</span>
-                    <ChevronDown size={12} className="text-slate-400" />
-                </div>
+                <UserMenu />
             </div>
 
             {/* Ribbon Toolbar */}
@@ -131,6 +125,16 @@ const Ribbon: React.FC = () => {
                             <ToolbarButton
                                 onClick={() => alert('Export feature coming soon!')}
                                 label="Export"
+                            >
+                                <Download size={20} />
+                            </ToolbarButton>
+                            <ToolbarButton
+                                onClick={() => {
+                                    if (currentDoc) {
+                                        saveDocumentAsDoc(currentDoc.title, currentDoc.content);
+                                    }
+                                }}
+                                label="Save as .doc"
                             >
                                 <Download size={20} />
                             </ToolbarButton>
