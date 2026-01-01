@@ -1,0 +1,35 @@
+{
+  "name": "writing-and-idea-editor",
+  "version": "1.0.0",
+  "description": "A desktop version of the Writing and Idea Editor application using Electron and React.",
+  "main": "main.js",
+  "scripts": {
+    "start": "vite",
+    "electron:start": "electron .",
+    "build": "vite build",
+    "electron:build": "electron-builder"
+  },
+  "build": {
+    "appId": "com.youware.novelwriter",
+    "productName": "Novel Writer",
+    "directories": {
+      "output": "dist_electron"
+    },
+    "files": [
+      "dist/**/*",
+      "main.js",
+      "preload.js"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "icon.ico"
+    }
+  },
+  "dependencies": {
+    "electron": "^25.0.0"
+  },
+  "devDependencies": {
+    "electron-builder": "^24.0.0",
+    "vite": "^4.0.0"
+  }
+}
