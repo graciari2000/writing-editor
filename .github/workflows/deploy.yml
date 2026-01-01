@@ -1,5 +1,9 @@
 name: Deploy to GitHub Pages
 
+# Grant workflow permission to write repository contents so Actions can push to gh-pages
+permissions:
+    contents: write
+
 on:
     push:
         branches: [main]
@@ -8,7 +12,11 @@ jobs:
     build-and-deploy:
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v4
+            - name: Checkout
+              uses: actions/checkout@v4
+              with:
+                  # persist the token so subsequent steps can push
+                  persist-credentials: true
             - uses: actions/setup-node@v4
               with:
                   node-version: "18"
