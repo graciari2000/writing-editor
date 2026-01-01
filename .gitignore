@@ -1,3 +1,9 @@
 /YOUWARE.md
 /node_modules
 /yw_manifest.json
+/.vscode
+/.idea
+/.env
+.DS_Store
+.qodo
+*.log
