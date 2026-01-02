@@ -1,0 +1,30 @@
+{
+  "name": "writing-and-idea-editor-mac",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "vite build",
+    "package": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^39.2.7",
+    "electron-builder": "^24.6.0"
+  },
+  "build": {
+    "appId": "com.youware.writingeditor.mac",
+    "productName": "Writing and Idea Editor",
+    "directories": {
+      "output": "dist_electron"
+    },
+    "files": [
+      "dist/**/*",
+      "main.js",
+      "preload.js"
+    ],
+    "mac": {
+      "target": "dmg",
+      "icon": "icon.icns"
+    }
+  }
+}
