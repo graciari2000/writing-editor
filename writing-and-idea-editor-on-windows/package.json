@@ -17,7 +17,7 @@
       "output": "dist_electron"
     },
     "files": [
-      "dist/**/*",
+      "../dist/**/*",
       "main.js",
       "preload.js"
     ],
@@ -39,8 +39,10 @@
     }
   },
   "dependencies": {
+    "firebase": "^12.7.0"
   },
   "devDependencies": {
+    "@types/firebase": "^2.4.32",
     "electron": "^39.2.7",
     "electron-builder": "^24.13.3",
     "vite": "^4.0.0"
