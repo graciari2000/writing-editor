@@ -3,13 +3,15 @@
   "version": "1.0.0",
   "description": "A desktop version of the Writing and Idea Editor application using Electron and React.",
   "main": "main.js",
+  "author": "graciari2000 <arianeakakpo@outlook.fr>",
+  "license": "MIT",
   "scripts": {
     "start": "electron .",
     "build": "vite build",
     "package": "electron-builder"
   },
   "build": {
-    "appId": "com.youware.writingeditor",
+    "appId": "com.ablcdstudios.writingeditor",
     "productName": "Writing and Idea Editor",
     "directories": {
       "output": "dist_electron"
@@ -21,14 +23,26 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "icon.ico"
+      "icon": "build/icon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "build/icon.icns"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
     }
   },
   "dependencies": {
-    "electron": "^39.2.7"
   },
   "devDependencies": {
-    "electron-builder": "^24.6.0",
+    "electron": "^39.2.7",
+    "electron-builder": "^24.13.3",
     "vite": "^4.0.0"
   }
 }
