@@ -1,4 +1,4 @@
-// store/useAppStore.ts - SIMPLIFIED WORKING VERSION
+// store/useAppStore.ts - CORRECTED VERSION
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { auth } from "../firebaseConfig";
@@ -29,7 +29,39 @@ interface AppState {
   updateUserProfile: (name: string) => Promise<void>;
   setCurrentUser: (user: User) => void;
   setLoading: (loading: boolean) => void;
+  initAuthListener: () => void; // ADD THIS
 }
+
+// Initialize auth listener outside the store
+let authListenerInitialized = false;
+
+const initAuthListener = () => {
+  if (authListenerInitialized || typeof window === 'undefined') return;
+  
+  authListenerInitialized = true;
+  
+  onAuthStateChanged(auth, (user) => {
+    const store = useAppStore.getState();
+    
+    if (user) {
+      console.log('Auth listener: User logged in', user.email);
+      store.setCurrentUser({
+        uid: user.uid,
+        email: user.email,
+        name: user.displayName || user.email?.split('@')[0] || "User",
+        avatar: user.photoURL || ""
+      });
+    } else {
+      console.log('Auth listener: User logged out');
+      store.setCurrentUser({
+        uid: null,
+        email: null,
+        name: "Guest",
+        avatar: ""
+      });
+    }
+  });
+};
 
 export const useAppStore = create<AppState>()(
   persist(
@@ -45,6 +77,11 @@ export const useAppStore = create<AppState>()(
       setLoading: (loading) => set({ isLoading: loading }),
 
       setCurrentUser: (user) => set({ currentUser: user }),
+
+      // ADD THIS METHOD TO THE STORE
+      initAuthListener: () => {
+        initAuthListener();
+      },
 
       login: async (email: string, password: string) => {
         set({ isLoading: true });
@@ -155,33 +192,5 @@ export const useAppStore = create<AppState>()(
   )
 );
 
-// Initialize auth listener
-let authListenerInitialized = false;
-
-export const initAuthListener = () => {
-  if (authListenerInitialized) return;
-  
-  authListenerInitialized = true;
-  
-  onAuthStateChanged(auth, (user) => {
-    const store = useAppStore.getState();
-    
-    if (user) {
-      console.log('Auth listener: User logged in', user.email);
-      store.setCurrentUser({
-        uid: user.uid,
-        email: user.email,
-        name: user.displayName || user.email?.split('@')[0] || "User",
-        avatar: user.photoURL || ""
-      });
-    } else {
-      console.log('Auth listener: User logged out');
-      store.setCurrentUser({
-        uid: null,
-        email: null,
-        name: "Guest",
-        avatar: ""
-      });
-    }
-  });
-};
+// Export the initAuthListener function separately as well
+export { initAuthListener };
