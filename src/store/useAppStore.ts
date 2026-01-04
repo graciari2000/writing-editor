@@ -1,4 +1,4 @@
-// useAppStore.ts
+// useAppStore.ts - Simplified version
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
@@ -7,18 +7,9 @@ import {
   signInWithEmailAndPassword, 
   signOut, 
   createUserWithEmailAndPassword,
-  onAuthStateChanged 
+  onAuthStateChanged,
+  updateProfile as firebaseUpdateProfile
 } from "firebase/auth";
-import {
-  saveIdeaToFirestore,
-  getUserIdeas,
-  updateIdeaInFirestore,
-  deleteIdeaFromFirestore,
-  saveDocumentToFirestore,
-  getUserDocuments,
-  updateDocumentInFirestore,
-  createUserProfile
-} from '../services/firestoreService';
 
 export type Idea = {
     id: string;
@@ -26,15 +17,6 @@ export type Idea = {
     content: string;
     tags: string[];
     createdAt: string;
-    firestoreId?: string; // Add Firestore ID
-};
-
-export type DocumentVersion = {
-    id: string;
-    content: string;
-    timestamp: string;
-    author: string;
-    description: string;
 };
 
 export type Document = {
@@ -42,17 +24,13 @@ export type Document = {
     title: string;
     content: string;
     lastModified: string;
-    versions: DocumentVersion[];
-    firestoreId?: string; // Add Firestore ID
 };
 
 interface AppState {
     // UI State
     sidebarOpen: boolean;
     toggleSidebar: () => void;
-    activeRibbonTab: 'file' | 'home' | 'insert' | 'view' | 'review';
-    setActiveRibbonTab: (tab: 'file' | 'home' | 'insert' | 'view' | 'review') => void;
-
+    
     // Data State
     ideas: Idea[];
     documents: Document[];
@@ -66,20 +44,19 @@ interface AppState {
     isLoading: boolean;
 
     // Actions
-    addIdea: (title: string, content: string) => Promise<void>;
-    deleteIdea: (id: string) => Promise<void>;
-    updateIdea: (id: string, content: string) => Promise<void>;
-    loadUserIdeas: () => Promise<void>;
+    addIdea: (title: string, content: string) => void;
+    deleteIdea: (id: string) => void;
+    updateIdea: (id: string, content: string) => void;
 
-    createDocument: (title: string) => Promise<void>;
+    createDocument: (title: string) => void;
     openDocument: (id: string) => void;
-    updateCurrentDocument: (content: string) => Promise<void>;
-    saveVersion: (description: string) => Promise<void>;
-    loadUserDocuments: () => Promise<void>;
+    updateCurrentDocument: (content: string) => void;
 
     login: (email: string, password: string) => Promise<void>;
     logout: () => Promise<void>;
     register: (email: string, password: string, name: string) => Promise<void>;
+    updateUserProfile: (name: string, avatarUrl?: string) => Promise<void>;
+    setCurrentUser: (user: { uid: string | null; email: string | null; name: string; avatar?: string }) => void;
     setLoading: (loading: boolean) => void;
 }
 
@@ -88,9 +65,7 @@ export const useAppStore = create<AppState>()(
         (set, get) => ({
             sidebarOpen: true,
             toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
-            activeRibbonTab: 'home',
-            setActiveRibbonTab: (tab) => set({ activeRibbonTab: tab }),
-
+            
             ideas: [],
             documents: [],
             currentDocumentId: null,
@@ -103,233 +78,56 @@ export const useAppStore = create<AppState>()(
             isLoading: false,
 
             setLoading: (loading) => set({ isLoading: loading }),
+            
+            setCurrentUser: (user) => set({ currentUser: user }),
 
-            addIdea: async (title: string, content: string) => {
-                const { currentUser } = get();
-                if (!currentUser.uid) {
-                    console.error('User must be logged in to add ideas');
-                    return;
-                }
+            addIdea: (title: string, content: string) => set((state) => ({
+                ideas: [...state.ideas, {
+                    id: uuidv4(),
+                    title,
+                    content,
+                    tags: [],
+                    createdAt: new Date().toISOString(),
+                }]
+            })),
 
-                set({ isLoading: true });
-                try {
-                    const localId = uuidv4();
-                    const ideaData = {
-                        title,
-                        content,
-                        tags: [],
-                        createdAt: new Date().toISOString(),
-                    };
+            deleteIdea: (id: string) => set((state) => ({
+                ideas: state.ideas.filter((idea) => idea.id !== id)
+            })),
 
-                    // Save to Firestore
-                    const firestoreId = await saveIdeaToFirestore(currentUser.uid, ideaData);
+            updateIdea: (id: string, content: string) => set((state) => ({
+                ideas: state.ideas.map((idea) =>
+                    idea.id === id ? { ...idea, content } : idea
+                )
+            })),
 
-                    // Update local state
-                    set((state) => ({
-                        ideas: [...state.ideas, {
-                            ...ideaData,
-                            id: localId,
-                            firestoreId
-                        }],
-                        isLoading: false
-                    }));
-                } catch (error) {
-                    console.error('Error adding idea:', error);
-                    set({ isLoading: false });
-                }
-            },
-
-            deleteIdea: async (id: string) => {
-                const idea = get().ideas.find(i => i.id === id);
-                if (!idea?.firestoreId) return;
-
-                set({ isLoading: true });
-                try {
-                    // Delete from Firestore
-                    await deleteIdeaFromFirestore(idea.firestoreId);
-
-                    // Update local state
-                    set((state) => ({
-                        ideas: state.ideas.filter((idea) => idea.id !== id),
-                        isLoading: false
-                    }));
-                } catch (error) {
-                    console.error('Error deleting idea:', error);
-                    set({ isLoading: false });
-                }
-            },
-
-            updateIdea: async (id: string, content: string) => {
-                const idea = get().ideas.find(i => i.id === id);
-                if (!idea?.firestoreId) return;
-
-                set({ isLoading: true });
-                try {
-                    // Update in Firestore
-                    await updateIdeaInFirestore(idea.firestoreId, { content });
-
-                    // Update local state
-                    set((state) => ({
-                        ideas: state.ideas.map((idea) =>
-                            idea.id === id ? { ...idea, content } : idea
-                        ),
-                        isLoading: false
-                    }));
-                } catch (error) {
-                    console.error('Error updating idea:', error);
-                    set({ isLoading: false });
-                }
-            },
-
-            loadUserIdeas: async () => {
-                const { currentUser } = get();
-                if (!currentUser.uid) return;
-
-                set({ isLoading: true });
-                try {
-                    const firestoreIdeas = await getUserIdeas(currentUser.uid);
-                    
-                    const ideas = firestoreIdeas.map((idea: any) => ({
-                        id: uuidv4(),
-                        firestoreId: idea.id,
-                        title: idea.title,
-                        content: idea.content,
-                        tags: idea.tags || [],
-                        createdAt: idea.createdAt?.toDate().toISOString() || new Date().toISOString(),
-                    }));
-
-                    set({ ideas, isLoading: false });
-                } catch (error) {
-                    console.error('Error loading ideas:', error);
-                    set({ isLoading: false });
-                }
-            },
-
-            createDocument: async (title: string) => {
-                const { currentUser } = get();
-                if (!currentUser.uid) {
-                    console.error('User must be logged in to create documents');
-                    return;
-                }
-
-                set({ isLoading: true });
-                try {
-                    const localId = uuidv4();
-                    const documentData = {
-                        title,
-                        content: '',
-                        lastModified: new Date().toISOString(),
-                        versions: [],
-                    };
-
-                    // Save to Firestore
-                    const firestoreId = await saveDocumentToFirestore(currentUser.uid, documentData);
-
-                    // Update local state
-                    set((state) => ({
-                        documents: [...state.documents, {
-                            ...documentData,
-                            id: localId,
-                            firestoreId
-                        }],
-                        currentDocumentId: localId,
-                        isLoading: false
-                    }));
-                } catch (error) {
-                    console.error('Error creating document:', error);
-                    set({ isLoading: false });
-                }
+            createDocument: (title: string) => {
+                const newDoc: Document = {
+                    id: uuidv4(),
+                    title,
+                    content: '',
+                    lastModified: new Date().toISOString(),
+                };
+                set((state) => ({
+                    documents: [...state.documents, newDoc],
+                    currentDocumentId: newDoc.id,
+                }));
             },
 
             openDocument: (id: string) => set({ currentDocumentId: id }),
 
-            updateCurrentDocument: async (content: string) => {
-                const { currentDocumentId, documents, currentUser } = get();
-                if (!currentDocumentId || !currentUser.uid) return;
+            updateCurrentDocument: (content: string) => set((state) => {
+                const docId = state.currentDocumentId;
+                if (!docId) return state;
 
-                const doc = documents.find(d => d.id === currentDocumentId);
-                if (!doc?.firestoreId) return;
-
-                set({ isLoading: true });
-                try {
-                    // Update in Firestore
-                    await updateDocumentInFirestore(doc.firestoreId, { content });
-
-                    // Update local state
-                    set((state) => ({
-                        documents: state.documents.map((doc) =>
-                            doc.id === currentDocumentId
-                                ? { ...doc, content, lastModified: new Date().toISOString() }
-                                : doc
-                        ),
-                        isLoading: false
-                    }));
-                } catch (error) {
-                    console.error('Error updating document:', error);
-                    set({ isLoading: false });
-                }
-            },
-
-            saveVersion: async (description: string) => {
-                const { currentDocumentId, documents, currentUser } = get();
-                if (!currentDocumentId || !currentUser.uid) return;
-
-                const doc = documents.find(d => d.id === currentDocumentId);
-                if (!doc?.firestoreId) return;
-
-                set({ isLoading: true });
-                try {
-                    const newVersion = {
-                        id: uuidv4(),
-                        content: doc.content,
-                        timestamp: new Date().toISOString(),
-                        author: currentUser.name,
-                        description,
-                    };
-
-                    // Update document with new version in Firestore
-                    await updateDocumentInFirestore(doc.firestoreId, {
-                        versions: [...(doc.versions || []), newVersion]
-                    });
-
-                    // Update local state
-                    set((state) => ({
-                        documents: state.documents.map((d) =>
-                            d.id === currentDocumentId
-                                ? { ...d, versions: [newVersion, ...(d.versions || [])] }
-                                : d
-                        ),
-                        isLoading: false
-                    }));
-                } catch (error) {
-                    console.error('Error saving version:', error);
-                    set({ isLoading: false });
-                }
-            },
-
-            loadUserDocuments: async () => {
-                const { currentUser } = get();
-                if (!currentUser.uid) return;
-
-                set({ isLoading: true });
-                try {
-                    const firestoreDocs = await getUserDocuments(currentUser.uid);
-                    
-                    const documents = firestoreDocs.map((doc: any) => ({
-                        id: uuidv4(),
-                        firestoreId: doc.id,
-                        title: doc.title,
-                        content: doc.content,
-                        lastModified: doc.updatedAt?.toDate().toISOString() || new Date().toISOString(),
-                        versions: doc.versions || [],
-                    }));
-
-                    set({ documents, isLoading: false });
-                } catch (error) {
-                    console.error('Error loading documents:', error);
-                    set({ isLoading: false });
-                }
-            },
+                return {
+                    documents: state.documents.map((doc) =>
+                        doc.id === docId
+                            ? { ...doc, content, lastModified: new Date().toISOString() }
+                            : doc
+                    )
+                };
+            }),
 
             login: async (email: string, password: string) => {
                 set({ isLoading: true });
@@ -341,15 +139,11 @@ export const useAppStore = create<AppState>()(
                         currentUser: { 
                             uid: user.uid,
                             email: user.email,
-                            name: user.email || "User", 
-                            avatar: "" 
+                            name: user.displayName || user.email?.split('@')[0] || "User", 
+                            avatar: user.photoURL || "" 
                         },
                         isLoading: false
                     });
-
-                    // Load user data after login
-                    get().loadUserIdeas();
-                    get().loadUserDocuments();
                 } catch (error: any) {
                     console.error("Login failed", error);
                     set({ isLoading: false });
@@ -368,9 +162,6 @@ export const useAppStore = create<AppState>()(
                             name: "Guest", 
                             avatar: "" 
                         },
-                        ideas: [],
-                        documents: [],
-                        currentDocumentId: null,
                         isLoading: false
                     });
                 } catch (error) {
@@ -385,8 +176,10 @@ export const useAppStore = create<AppState>()(
                     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                     const user = userCredential.user;
                     
-                    // Create user profile in Firestore
-                    await createUserProfile(user.uid, { email, name });
+                    // Update display name
+                    await firebaseUpdateProfile(user, {
+                        displayName: name
+                    });
                     
                     set({ 
                         currentUser: { 
@@ -403,32 +196,68 @@ export const useAppStore = create<AppState>()(
                     throw error;
                 }
             },
+
+            updateUserProfile: async (name: string, avatarUrl?: string) => {
+                const { currentUser } = get();
+                if (!currentUser.uid) {
+                    throw new Error("User must be logged in");
+                }
+
+                set({ isLoading: true });
+                try {
+                    const user = auth.currentUser;
+                    if (!user) throw new Error("No user found");
+
+                    // Update Firebase auth profile
+                    await firebaseUpdateProfile(user, {
+                        displayName: name,
+                        photoURL: avatarUrl || null
+                    });
+
+                    // Update local state
+                    set({ 
+                        currentUser: { 
+                            ...currentUser,
+                            name,
+                            avatar: avatarUrl || currentUser.avatar
+                        },
+                        isLoading: false
+                    });
+                } catch (error: any) {
+                    console.error("Update profile failed", error);
+                    set({ isLoading: false });
+                    throw error;
+                }
+            },
         }),
         {
             name: 'novel-writer-storage',
             partialize: (state) => ({
-                // Only persist UI state, not data (data comes from Firestore)
+                // Persist minimal state
                 sidebarOpen: state.sidebarOpen,
                 currentUser: state.currentUser,
                 currentDocumentId: state.currentDocumentId,
-                activeRibbonTab: state.activeRibbonTab,
             }),
         }
     )
 );
 
-// Initialize auth state listener
+// Auth listener
 export const initAuthListener = () => {
-    onAuthStateChanged(auth, (user) => {
+    return onAuthStateChanged(auth, (user) => {
+        const store = useAppStore.getState();
+        
         if (user) {
-            useAppStore.getState().setCurrentUser({
+            console.log('User logged in:', user.email);
+            store.setCurrentUser({
                 uid: user.uid,
                 email: user.email,
-                name: user.email || "User",
-                avatar: ""
+                name: user.displayName || user.email?.split('@')[0] || "User",
+                avatar: user.photoURL || ""
             });
         } else {
-            useAppStore.getState().setCurrentUser({
+            console.log('User logged out');
+            store.setCurrentUser({
                 uid: null,
                 email: null,
                 name: "Guest",
@@ -437,9 +266,3 @@ export const initAuthListener = () => {
         }
     });
 };
-
-// Add missing setter for currentUser
-useAppStore.setState((state) => ({
-    ...state,
-    setCurrentUser: (user: any) => set({ currentUser: user })
-}));
