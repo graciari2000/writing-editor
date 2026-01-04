@@ -10,3 +10,4 @@ dist/
 *.local
 /yw_manifest.json
 .qodo
+dist_electron/
