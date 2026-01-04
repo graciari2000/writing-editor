@@ -1,7 +1,8 @@
+// firebaseConfig.ts
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getStorage } from "firebase/storage"; // Add this import
-import { getFirestore } from "firebase/firestore"; // Optional but recommended
+import { getStorage } from "firebase/storage";
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -15,10 +16,9 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Export Firebase services
+// Initialize services
 export const auth = getAuth(app);
-export const storage = getStorage(app); // Add this export
-export const db = getFirestore(app); // Optional: for Firestore database
+export const storage = getStorage(app);
+export const db = getFirestore(app); // Make sure this is initialized
 
-// Export the app instance if needed
 export default app;
