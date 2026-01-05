@@ -1,16 +1,18 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Image from '@tiptap/extension-image';
+import CharacterCount from '@tiptap/extension-character-count'; // Add this import
 import { useAppStore } from '../../store/useAppStore';
 import { useEditorContext } from './EditorContext';
 
 const RichTextEditor: React.FC = () => {
     const { currentDocumentId, documents, updateCurrentDocument } = useAppStore();
     const { setEditor } = useEditorContext();
+    const previousDocIdRef = useRef<string | null>(null);
 
     const currentDoc = documents.find((d) => d.id === currentDocumentId);
 
@@ -23,8 +25,16 @@ const RichTextEditor: React.FC = () => {
             Underline,
             TextAlign.configure({
                 types: ['heading', 'paragraph'],
+                alignments: ['left', 'center', 'right', 'justify'],
+                defaultAlignment: 'left',
             }),
-            Image,
+            Image.configure({
+                inline: true,
+                allowBase64: true,
+            }),
+            CharacterCount.configure({ // Add this extension
+                limit: null, // No character limit
+            }),
         ],
         content: currentDoc?.content || '',
         onUpdate: ({ editor }) => {
@@ -37,81 +47,58 @@ const RichTextEditor: React.FC = () => {
         },
     });
 
-    // Sync editor content when current document changes
-    useEffect(() => {
-        if (editor && currentDoc && editor.getHTML() !== currentDoc.content) {
-            // Only update if content is different to avoid cursor jumping
-            // This is a naive check, for production might need better diffing
-            // But for switching docs it's fine.
-            // However, onUpdate triggers updateCurrentDocument which triggers this useEffect.
-            // We need to be careful.
-            // Actually, if we switch documents, we want to set content.
-            // If we are typing, we don't want to re-set content.
-
-            // A simple way is to check if the document ID changed.
-        }
-    }, [currentDoc?.id, editor]);
-
-    // Better approach for document switching:
+    // Handle document switching properly
     useEffect(() => {
         if (editor && currentDoc) {
-            // Check if the content in store is significantly different (e.g. loaded a new doc)
-            // or just use a key on the component to force re-mount when docId changes.
-            // But re-mounting loses history.
+            if (previousDocIdRef.current !== currentDocumentId) {
+                // Save cursor position before changing content
+                const selection = editor.state.selection;
+                const wasEmpty = editor.isEmpty;
 
-            // Let's just set content if it's a different document ID
-            // We can track the last loaded doc ID in a ref?
-        }
-    }, [currentDoc?.id]);
+                // Set new content
+                editor.commands.setContent(currentDoc.content, false);
 
-    // Actually, the easiest way to handle doc switching is to use the `content` prop in useEditor
-    // but useEditor doesn't update content dynamically after init unless we use useEffect.
+                // Try to restore cursor position if possible
+                if (!wasEmpty && selection.from <= editor.state.doc.content.size) {
+                    setTimeout(() => {
+                        editor.commands.setTextSelection(Math.min(selection.from, editor.state.doc.content.size));
+                    }, 0);
+                }
 
-    useEffect(() => {
-        if (editor && currentDoc) {
-            // We only want to set content if we switched documents.
-            // If we are just typing, the store updates, but we shouldn't re-set the editor content
-            // because that resets the cursor.
-
-            // We can compare the editor content with the store content.
-            // But HTML strings might differ slightly.
-
-            // Let's assume for now we just set content when doc ID changes.
-            // We can achieve this by passing `currentDocumentId` as a key to the component wrapper?
-            // No, that would destroy the editor instance.
-
-            // Let's try:
-            const currentContent = editor.getHTML();
-            if (currentDoc.content !== currentContent) {
-                // This might still cause issues if the store update is slightly delayed or formatted differently.
-                // A common pattern is to only set content if the editor is empty or we explicitly switched docs.
+                previousDocIdRef.current = currentDocumentId;
             }
-        }
-    }, [currentDoc, editor]);
-
-    // Let's use a ref to track the current doc ID
-    const docIdRef = React.useRef(currentDocumentId);
-
-    useEffect(() => {
-        if (editor && currentDoc && docIdRef.current !== currentDocumentId) {
-            editor.commands.setContent(currentDoc.content);
-            docIdRef.current = currentDocumentId;
         }
     }, [currentDocumentId, currentDoc, editor]);
 
+    // Update editor context
     useEffect(() => {
         setEditor(editor);
         return () => setEditor(null);
     }, [editor, setEditor]);
 
     if (!editor) {
-        return null;
+        return (
+            <div className="flex-1 bg-gray-100 overflow-y-auto h-full p-8 flex justify-center items-center">
+                <div className="w-full max-w-[816px]">
+                    <div className="bg-white p-8 rounded shadow animate-pulse">
+                        <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
+                        <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                </div>
+            </div>
+        );
     }
 
     return (
         <div className="flex-1 bg-gray-100 overflow-y-auto h-full p-8 flex justify-center">
             <div className="w-full max-w-[816px]"> {/* A4 width approx */}
                 <EditorContent editor={editor} />
+
+                {/* Debug info - remove in production */}
+                {/* <div className="mt-4 text-xs text-gray-500">
+                    Words: {editor.storage.characterCount?.words?.() || 0} |
+                    Chars: {editor.storage.characterCount?.characters?.() || 0}
+                </div> */}
             </div>
         </div>
     );
