@@ -492,3 +492,59 @@ body.focus-mode .page-break-line {
     margin-top: 1rem;
     margin-bottom: 0.5rem;
 }
+
+/* Page simulation with continuous editing */
+.page-simulation-container {
+    position: relative;
+}
+
+.page-simulation {
+    background: white;
+    min-height: 1123px;
+    width: 794px;
+    margin: 0 auto;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    position: relative;
+    padding: 3rem 4rem;
+}
+
+/* Ensure page breaks are visible */
+.ProseMirror .page-break {
+    position: relative;
+    margin: 2rem 0;
+    text-align: center;
+}
+
+.ProseMirror .page-break-line {
+    border: none;
+    border-top: 2px dashed #cbd5e0;
+    width: 100%;
+    margin: 1.5rem 0;
+}
+
+.ProseMirror .page-break-text {
+    background: white;
+    padding: 0.5rem 1rem;
+    color: #718096;
+    font-size: 0.875rem;
+    font-style: italic;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+}
+
+/* Print styles will split at page breaks */
+@media print {
+    .page-break {
+        page-break-after: always;
+        break-after: page;
+    }
+    
+    .page-simulation {
+        box-shadow: none;
+        page-break-inside: avoid;
+    }
+}
