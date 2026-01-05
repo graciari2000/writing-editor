@@ -5,20 +5,33 @@ const Login: React.FC = () => {
     const { login, register } = useAppStore();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [name, setName] = useState("");
     const [isRegistering, setIsRegistering] = useState(false);
     const [error, setError] = useState("");
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setError("");
+
+        // Validation
+        if (!email || !password) {
+            setError("Email and password are required");
+            return;
+        }
+
+        if (isRegistering && !name.trim()) {
+            setError("Name is required for registration");
+            return;
+        }
+
         try {
             if (isRegistering) {
-                await register(email, password);
+                await register(email, password, name);
             } else {
                 await login(email, password);
             }
-            setError("");
-        } catch (err) {
-            setError("Failed to " + (isRegistering ? "register." : "log in."));
+        } catch (err: any) {
+            setError(err.message || `Failed to ${isRegistering ? "register" : "log in"}`);
         }
     };
 
@@ -31,7 +44,26 @@ const Login: React.FC = () => {
                 <h2 className="text-2xl font-bold mb-4">
                     {isRegistering ? "Register" : "Login"}
                 </h2>
-                {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+
+                {error && (
+                    <p className="text-red-500 text-sm mb-4 p-2 bg-red-50 rounded">
+                        {error}
+                    </p>
+                )}
+
+                {isRegistering && (
+                    <div className="mb-4">
+                        <label className="block text-sm font-medium mb-1">Name</label>
+                        <input
+                            type="text"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            className="w-full border border-gray-300 rounded px-3 py-2"
+                            required={isRegistering}
+                        />
+                    </div>
+                )}
+
                 <div className="mb-4">
                     <label className="block text-sm font-medium mb-1">Email</label>
                     <input
@@ -42,6 +74,7 @@ const Login: React.FC = () => {
                         required
                     />
                 </div>
+
                 <div className="mb-4">
                     <label className="block text-sm font-medium mb-1">Password</label>
                     <input
@@ -50,19 +83,30 @@ const Login: React.FC = () => {
                         onChange={(e) => setPassword(e.target.value)}
                         className="w-full border border-gray-300 rounded px-3 py-2"
                         required
+                        minLength={6}
                     />
                 </div>
+
                 <button
                     type="submit"
-                    className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600"
+                    className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!email || !password || (isRegistering && !name)}
                 >
                     {isRegistering ? "Register" : "Log In"}
                 </button>
+
                 <p
                     className="text-sm text-center text-gray-600 mt-4 cursor-pointer hover:underline"
-                    onClick={() => setIsRegistering(!isRegistering)}
+                    onClick={() => {
+                        setIsRegistering(!isRegistering);
+                        setError("");
+                        setName("");
+                    }}
                 >
-                    {isRegistering ? "Already have an account? Log in" : "Don't have an account? Register"}
+                    {isRegistering
+                        ? "Already have an account? Log in"
+                        : "Don't have an account? Register"
+                    }
                 </p>
             </form>
         </div>

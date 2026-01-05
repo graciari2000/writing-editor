@@ -1,6 +1,5 @@
-// Profile.tsx - FIXED VERSION
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import { useAppStore } from "../../store/useAppStore";
 import { toast } from "react-hot-toast";
 
@@ -18,7 +17,6 @@ const Profile: React.FC = () => {
     const handleSave = async () => {
         if (!currentUser?.uid) {
             toast.error("You must be logged in to update your profile");
-            navigate("/login");
             return;
         }
 
@@ -49,10 +47,9 @@ const Profile: React.FC = () => {
         navigate("/");
     };
 
+    // Redirect if not logged in
     if (!currentUser?.uid) {
-        // Redirect to login if not logged in
-        navigate("/login");
-        return null;
+        return <Navigate to="/login" replace />;
     }
 
     return (
@@ -62,9 +59,10 @@ const Profile: React.FC = () => {
                 <div className="flex items-center mb-6">
                     <button
                         onClick={handleBackToHome}
-                        className="text-gray-600 hover:text-gray-800 transition duration-200 mr-4"
+                        className="text-gray-600 hover:text-gray-800 transition duration-200 mr-4 p-2 hover:bg-gray-100 rounded-full"
+                        aria-label="Back to home"
                     >
-                        ←
+                        ← Back
                     </button>
                     <h2 className="text-2xl font-bold text-gray-800">Profile</h2>
                 </div>
@@ -90,7 +88,7 @@ const Profile: React.FC = () => {
                         type="text"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
                         placeholder="Enter your name"
                     />
                 </div>
@@ -99,10 +97,10 @@ const Profile: React.FC = () => {
                 <div className="space-y-3">
                     <button
                         onClick={handleSave}
-                        disabled={isLoading || !name.trim()}
-                        className={`w-full py-2 px-4 rounded-lg font-medium ${isLoading || !name.trim()
-                                ? "bg-gray-300 cursor-not-allowed"
-                                : "bg-blue-500 hover:bg-blue-600 text-white"
+                        disabled={isLoading || !name.trim() || name === currentUser.name}
+                        className={`w-full py-2 px-4 rounded-lg font-medium transition ${isLoading || !name.trim() || name === currentUser.name
+                            ? "bg-gray-300 cursor-not-allowed text-gray-500"
+                            : "bg-blue-500 hover:bg-blue-600 text-white"
                             }`}
                     >
                         {isLoading ? "Saving..." : "Save Changes"}
@@ -110,14 +108,14 @@ const Profile: React.FC = () => {
 
                     <button
                         onClick={handleBackToHome}
-                        className="w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium"
+                        className="w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition"
                     >
                         Back to Home
                     </button>
 
                     <button
                         onClick={handleLogout}
-                        className="w-full py-2 px-4 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium"
+                        className="w-full py-2 px-4 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition"
                     >
                         Logout
                     </button>
