@@ -9,30 +9,29 @@ import RichTextEditor from './components/editor/RichTextEditor';
 import StatusBar from './components/layout/StatusBar';
 import Login from './components/Login';
 import Profile from "./components/layout/Profile";
+import ProtectedRoute from './components/auth/ProtectedRoute';
 
 function App() {
-    const { currentUser, initAuthListener } = useAppStore();
-    const [isLoading, setIsLoading] = useState(true);
+    const { currentUser, initAuthListener, isLoading } = useAppStore();
+    const [authChecked, setAuthChecked] = useState(false);
 
     // Initialize auth listener on app start
     useEffect(() => {
-        initAuthListener();
+        const unsubscribe = initAuthListener();
+        setAuthChecked(true);
 
-        // Simulate a small delay for auth to initialize
-        const timer = setTimeout(() => {
-            setIsLoading(false);
-        }, 500);
-
-        return () => clearTimeout(timer);
+        return () => {
+            if (unsubscribe) unsubscribe();
+        };
     }, [initAuthListener]);
 
     // Show loading state while checking auth
-    if (isLoading) {
+    if (isLoading || !authChecked) {
         return (
             <div className="flex items-center justify-center h-screen bg-gray-100">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-                    <p className="mt-4 text-gray-600">Loading...</p>
+                    <p className="mt-4 text-gray-600">Initializing application...</p>
                 </div>
             </div>
         );
@@ -48,6 +47,18 @@ function App() {
                         background: '#363636',
                         color: '#fff',
                     },
+                    success: {
+                        duration: 2000,
+                        style: {
+                            background: '#10b981',
+                        },
+                    },
+                    error: {
+                        duration: 4000,
+                        style: {
+                            background: '#ef4444',
+                        },
+                    },
                 }}
             />
             <Router>
@@ -59,7 +70,7 @@ function App() {
                     <Route
                         path="/"
                         element={
-                            currentUser.uid ? (
+                            <ProtectedRoute>
                                 <EditorProvider>
                                     <div className="flex flex-col h-screen w-screen overflow-hidden bg-gray-100 font-sans text-gray-900">
                                         {/* Top Ribbon */}
@@ -78,20 +89,16 @@ function App() {
                                         <StatusBar />
                                     </div>
                                 </EditorProvider>
-                            ) : (
-                                <Navigate to="/login" replace />
-                            )
+                            </ProtectedRoute>
                         }
                     />
 
                     <Route
                         path="/profile"
                         element={
-                            currentUser.uid ? (
+                            <ProtectedRoute>
                                 <Profile />
-                            ) : (
-                                <Navigate to="/login" replace />
-                            )
+                            </ProtectedRoute>
                         }
                     />
 
