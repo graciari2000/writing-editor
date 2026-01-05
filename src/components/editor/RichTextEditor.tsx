@@ -9,48 +9,6 @@ import CharacterCount from '@tiptap/extension-character-count';
 import { useAppStore } from '../../store/useAppStore';
 import { useEditorContext } from './EditorContext';
 
-// Add PageBreak extension
-const PageBreak = (options = {}) => {
-    return {
-        name: 'pageBreak',
-        addCommands() {
-            return {
-                insertPageBreak: () => ({ chain }) => {
-                    return chain()
-                        .insertContent({
-                            type: 'pageBreak',
-                        })
-                        .setHardBreak()
-                        .run()
-                },
-            }
-        },
-        addNodeView() {
-            return ({ node }) => {
-                const div = document.createElement('div')
-                div.className = 'page-break'
-                const hr = document.createElement('hr')
-                hr.className = 'page-break-line'
-                div.appendChild(hr)
-                const span = document.createElement('span')
-                span.className = 'page-break-text'
-                span.textContent = 'Page Break'
-                div.appendChild(span)
-                return {
-                    dom: div,
-                }
-            }
-        },
-        addNodeSpec() {
-            return {
-                group: 'block',
-                parseDOM: [{ tag: 'div.page-break' }],
-                toDOM: () => ['div', { class: 'page-break' }, ['hr', { class: 'page-break-line' }], ['span', { class: 'page-break-text' }, 'Page Break']],
-            }
-        },
-    }
-}
-
 const RichTextEditor: React.FC = () => {
     const { currentDocumentId, documents, updateCurrentDocument } = useAppStore();
     const { setEditor } = useEditorContext();
@@ -60,7 +18,13 @@ const RichTextEditor: React.FC = () => {
 
     const editor = useEditor({
         extensions: [
-            StarterKit,
+            StarterKit.configure({
+                horizontalRule: {
+                    HTMLAttributes: {
+                        class: 'page-break',
+                    },
+                },
+            }),
             Placeholder.configure({
                 placeholder: 'Start writing your novel...',
             }),
@@ -77,7 +41,6 @@ const RichTextEditor: React.FC = () => {
             CharacterCount.configure({
                 limit: null,
             }),
-            PageBreak(), // Add page break extension
         ],
         content: currentDoc?.content || '',
         onUpdate: ({ editor }) => {
@@ -106,6 +69,17 @@ const RichTextEditor: React.FC = () => {
         return () => setEditor(null);
     }, [editor, setEditor]);
 
+    // Function to insert page break
+    const insertPageBreak = () => {
+        if (!editor) return;
+
+        // Insert horizontal rule as page break
+        editor.chain().focus().setHorizontalRule().run();
+
+        // Add some spacing after the page break
+        editor.chain().focus().insertContent('<p>&nbsp;</p>').run();
+    };
+
     // Add keyboard shortcut for page break (Ctrl/Cmd + Enter)
     useEffect(() => {
         if (!editor) return;
@@ -113,7 +87,7 @@ const RichTextEditor: React.FC = () => {
         const handleKeyDown = (event: KeyboardEvent) => {
             if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
                 event.preventDefault();
-                editor.commands.insertPageBreak();
+                insertPageBreak();
             }
         };
 
@@ -158,7 +132,7 @@ const RichTextEditor: React.FC = () => {
                 {/* Toolbar for page controls */}
                 <div className="flex justify-center items-center space-x-4 mt-8 hide-in-focus-mode">
                     <button
-                        onClick={() => editor.commands.insertPageBreak()}
+                        onClick={insertPageBreak}
                         className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium flex items-center gap-2"
                         title="Insert Page Break (Ctrl/Cmd + Enter)"
                     >
@@ -173,7 +147,7 @@ const RichTextEditor: React.FC = () => {
                         <kbd className="px-2 py-1 bg-gray-100 rounded border text-xs font-mono">Ctrl/Cmd</kbd>
                         {" "}+{" "}
                         <kbd className="px-2 py-1 bg-gray-100 rounded border text-xs font-mono">Enter</kbd>
-                        {" "}for quick page breaks
+                        {" "}for page breaks
                     </div>
                 </div>
             </div>
