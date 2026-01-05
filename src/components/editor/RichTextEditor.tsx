@@ -94,7 +94,7 @@ const RichTextEditor: React.FC = () => {
     // Function to insert page break (for local use)
     const insertPageBreak = () => {
         if (!editor) return;
-        editor.chain().focus().setHorizontalRule().run();
+        editor.commands.insertPageBreak();
     };
 
     // Add keyboard shortcut for page break (Ctrl/Cmd + Enter)
