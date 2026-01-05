@@ -6,7 +6,10 @@ import {
     Eye,
     EyeOff,
     RefreshCw,
-    Save
+    Printer,
+    ChevronLeft,
+    ChevronRight,
+    Plus
 } from 'lucide-react';
 
 const StatusBar: React.FC = () => {
@@ -15,43 +18,72 @@ const StatusBar: React.FC = () => {
     const [isFocusMode, setIsFocusMode] = useState(false);
     const [wordCount, setWordCount] = useState(0);
     const [charCount, setCharCount] = useState(0);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
     const [lastSaved, setLastSaved] = useState<string>('');
+    const [pageCount, setPageCount] = useState(1);
 
-    // Update counts whenever editor content changes
+    // Calculate page breaks and update page count
+    const updatePageCount = () => {
+        if (!editor) return;
+
+        const content = editor.getHTML();
+        // Count page breaks + 1 for the first page
+        const pageBreaks = (content.match(/page-break/g) || []).length;
+        setPageCount(pageBreaks + 1);
+
+        // Update total pages
+        setTotalPages(pageBreaks + 1);
+    };
+
+    // Update counts and page info
     useEffect(() => {
         if (!editor) return;
 
-        const updateCounts = () => {
-            const words = editor.storage.characterCount?.words?.() || 0;
-            const chars = editor.storage.characterCount?.characters?.() || 0;
+        const updateAll = () => {
+            // Update word count
+            let words = 0;
+            let chars = 0;
+
+            if (editor.storage.characterCount?.words) {
+                words = editor.storage.characterCount.words();
+                chars = editor.storage.characterCount.characters();
+            } else {
+                const text = editor.getText();
+                words = text.trim().split(/\s+/).filter(word => word.length > 0).length;
+                chars = text.length;
+            }
+
             setWordCount(words);
             setCharCount(chars);
+
+            // Update page count
+            updatePageCount();
         };
 
         // Initial update
-        updateCounts();
+        updateAll();
 
         // Subscribe to updates
-        editor.on('update', updateCounts);
-        editor.on('selectionUpdate', updateCounts);
+        editor.on('update', updateAll);
+        editor.on('selectionUpdate', updateAll);
 
         return () => {
-            editor.off('update', updateCounts);
-            editor.off('selectionUpdate', updateCounts);
+            editor.off('update', updateAll);
+            editor.off('selectionUpdate', updateAll);
         };
     }, [editor]);
 
     // Update last saved time
     useEffect(() => {
-        const now = new Date();
-        const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        setLastSaved(`Last saved: ${timeString}`);
-
-        const interval = setInterval(() => {
+        const updateTime = () => {
             const now = new Date();
             const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            setLastSaved(`Last saved: ${timeString}`);
-        }, 60000); // Update every minute
+            setLastSaved(timeString);
+        };
+
+        updateTime();
+        const interval = setInterval(updateTime, 60000);
 
         return () => clearInterval(interval);
     }, []);
@@ -73,30 +105,58 @@ const StatusBar: React.FC = () => {
 
     // Toggle focus mode
     const toggleFocusMode = () => {
-        const editorElement = document.querySelector('.ProseMirror') as HTMLElement;
-        if (!editorElement) return;
-
         setIsFocusMode(!isFocusMode);
 
         if (!isFocusMode) {
-            // Enter focus mode
             document.body.classList.add('focus-mode');
-            editorElement.classList.add('focus-mode-active');
+            const editorElement = document.querySelector('.ProseMirror');
+            if (editorElement) {
+                editorElement.classList.add('focus-mode-active');
+            }
 
-            // Hide other elements
             document.querySelectorAll('.ribbon, .sidebar, .status-bar').forEach(el => {
-                (el as HTMLElement).style.display = 'none';
+                (el as HTMLElement).style.opacity = '0';
+                (el as HTMLElement).style.pointerEvents = 'none';
             });
         } else {
-            // Exit focus mode
             document.body.classList.remove('focus-mode');
-            editorElement.classList.remove('focus-mode-active');
+            const editorElement = document.querySelector('.ProseMirror');
+            if (editorElement) {
+                editorElement.classList.remove('focus-mode-active');
+            }
 
-            // Show other elements
             document.querySelectorAll('.ribbon, .sidebar, .status-bar').forEach(el => {
-                (el as HTMLElement).style.display = '';
+                (el as HTMLElement).style.opacity = '';
+                (el as HTMLElement).style.pointerEvents = '';
             });
         }
+    };
+
+    // Navigate to page
+    const goToPage = (page: number) => {
+        if (page < 1 || page > totalPages) return;
+        setCurrentPage(page);
+
+        // Scroll to page (simplified - in real app you'd calculate position)
+        const editorElement = document.querySelector('.ProseMirror');
+        if (editorElement) {
+            editorElement.scrollTo({
+                top: (page - 1) * window.innerHeight,
+                behavior: 'smooth'
+            });
+        }
+    };
+
+    // Add page break
+    const addPageBreak = () => {
+        if (!editor) return;
+        editor.commands.insertPageBreak();
+        setCurrentPage(totalPages + 1);
+    };
+
+    // Print document
+    const printDocument = () => {
+        window.print();
     };
 
     // Handle fullscreen change events
@@ -108,13 +168,11 @@ const StatusBar: React.FC = () => {
         document.addEventListener('fullscreenchange', handleFullscreenChange);
         document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
         document.addEventListener('mozfullscreenchange', handleFullscreenChange);
-        document.addEventListener('MSFullscreenChange', handleFullscreenChange);
 
         return () => {
             document.removeEventListener('fullscreenchange', handleFullscreenChange);
             document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
             document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
-            document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
         };
     }, []);
 
@@ -126,10 +184,7 @@ const StatusBar: React.FC = () => {
             }
         };
 
-        if (isFocusMode) {
-            document.addEventListener('keydown', handleKeyDown);
-        }
-
+        document.addEventListener('keydown', handleKeyDown);
         return () => {
             document.removeEventListener('keydown', handleKeyDown);
         };
@@ -139,56 +194,96 @@ const StatusBar: React.FC = () => {
         return null;
     }
 
-    // Format word count with commas
-    const formattedWordCount = wordCount.toLocaleString();
-    const formattedCharCount = charCount.toLocaleString();
-
     return (
         <div className="status-bar h-8 bg-slate-800 text-white flex items-center px-4 text-xs justify-between select-none border-t border-slate-700">
             <div className="flex space-x-4 items-center">
                 {/* Document stats */}
                 <div className="flex items-center space-x-3">
                     <div className="flex items-center space-x-2 bg-slate-700 px-2 py-1 rounded">
-                        <span className="text-green-400">✓</span>
+                        <RefreshCw size={10} className="text-green-400" />
                         <span className="text-xs">{lastSaved}</span>
                     </div>
 
-                    <div className="flex items-center space-x-1">
-                        <span className="text-blue-300">{formattedWordCount}</span>
-                        <span className="text-slate-400 text-xs">words</span>
-                    </div>
+                    <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-1 bg-slate-700 px-2 py-1 rounded">
+                            <span className="text-blue-300 font-medium">{wordCount.toLocaleString()}</span>
+                            <span className="text-slate-400 text-xs">words</span>
+                        </div>
 
-                    <div className="flex items-center space-x-1">
-                        <span className="text-purple-300">{formattedCharCount}</span>
-                        <span className="text-slate-400 text-xs">chars</span>
-                    </div>
-
-                    {/* Page indicator */}
-                    <div className="flex items-center space-x-1 bg-slate-700 px-2 py-1 rounded">
-                        <span className="text-xs">Page</span>
-                        <span className="font-bold">1</span>
-                        <span className="text-slate-400">/</span>
-                        <span>1</span>
+                        <div className="flex items-center space-x-1 bg-slate-700 px-2 py-1 rounded">
+                            <span className="text-purple-300 font-medium">{charCount.toLocaleString()}</span>
+                            <span className="text-slate-400 text-xs">chars</span>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div className="flex space-x-2 items-center">
+            <div className="flex space-x-4 items-center">
+                {/* Page Navigation */}
+                <div className="flex items-center space-x-2 bg-slate-700 px-2 py-1 rounded">
+                    <button
+                        onClick={() => goToPage(currentPage - 1)}
+                        disabled={currentPage <= 1}
+                        className="p-1 hover:bg-slate-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Previous Page"
+                    >
+                        <ChevronLeft size={12} />
+                    </button>
+
+                    <div className="flex items-center space-x-1 px-2">
+                        <span className="font-medium">Page</span>
+                        <input
+                            type="number"
+                            value={currentPage}
+                            onChange={(e) => goToPage(parseInt(e.target.value) || 1)}
+                            min={1}
+                            max={totalPages}
+                            className="w-10 bg-slate-800 text-center rounded px-1 py-0.5 text-xs"
+                        />
+                        <span className="text-slate-400">of</span>
+                        <span className="font-medium">{totalPages}</span>
+                    </div>
+
+                    <button
+                        onClick={() => goToPage(currentPage + 1)}
+                        disabled={currentPage >= totalPages}
+                        className="p-1 hover:bg-slate-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Next Page"
+                    >
+                        <ChevronRight size={12} />
+                    </button>
+
+                    <button
+                        onClick={addPageBreak}
+                        className="p-1 hover:bg-slate-600 rounded ml-2"
+                        title="Add Page Break"
+                    >
+                        <Plus size={12} />
+                    </button>
+                </div>
+
+                {/* Print Button */}
+                <button
+                    onClick={printDocument}
+                    className="flex items-center space-x-1 px-2 py-1 bg-gray-600 hover:bg-gray-700 rounded transition-colors text-xs"
+                    title="Print Document"
+                >
+                    <Printer size={12} />
+                    <span>Print</span>
+                </button>
+
                 {/* Language selector */}
                 <div className="flex items-center space-x-1 bg-slate-700 px-2 py-1 rounded cursor-pointer hover:bg-slate-600 transition-colors">
                     <span className="text-xs">English (US)</span>
                     <span className="text-slate-400 text-xs">▼</span>
                 </div>
 
-                {/* Auto-save indicator */}
-                <div className="flex items-center space-x-1 px-2 py-1 rounded bg-green-900/30 text-green-300">
-                    <RefreshCw size={10} />
-                    <span className="text-xs">Auto-save</span>
-                </div>
-
                 {/* Focus Mode Button */}
                 <button
-                    className="flex items-center space-x-1 px-2 py-1 bg-blue-600 hover:bg-blue-700 rounded transition-colors text-xs"
+                    className={`flex items-center space-x-1 px-2 py-1 rounded transition-colors text-xs ${isFocusMode
+                            ? 'bg-yellow-600 hover:bg-yellow-700'
+                            : 'bg-blue-600 hover:bg-blue-700'
+                        }`}
                     onClick={toggleFocusMode}
                     title={isFocusMode ? "Exit Focus Mode (ESC)" : "Enter Focus Mode"}
                 >
@@ -207,7 +302,10 @@ const StatusBar: React.FC = () => {
 
                 {/* Full Screen Button */}
                 <button
-                    className="flex items-center space-x-1 px-2 py-1 bg-purple-600 hover:bg-purple-700 rounded transition-colors text-xs"
+                    className={`flex items-center space-x-1 px-2 py-1 rounded transition-colors text-xs ${isFullscreen
+                            ? 'bg-purple-700 hover:bg-purple-800'
+                            : 'bg-purple-600 hover:bg-purple-700'
+                        }`}
                     onClick={toggleFullscreen}
                     title={isFullscreen ? "Exit Full Screen" : "Enter Full Screen"}
                 >

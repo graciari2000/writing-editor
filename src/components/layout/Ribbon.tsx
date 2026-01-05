@@ -261,6 +261,15 @@ const Ribbon: React.FC = () => {
                             >
                                 <ImageIcon size={20} />
                             </ToolbarButton>
+
+                            <ToolbarButton
+                                onClick={() => {
+                                    editor.chain().focus().insertPageBreak().run();
+                                }}
+                                label="Page Break"
+                            >
+                                <FilePlus size={20} />
+                            </ToolbarButton>
                         </div>
                     </>
                 )}

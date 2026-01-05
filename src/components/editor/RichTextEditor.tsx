@@ -5,9 +5,51 @@ import Placeholder from '@tiptap/extension-placeholder';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Image from '@tiptap/extension-image';
-import CharacterCount from '@tiptap/extension-character-count'; // Add this import
+import CharacterCount from '@tiptap/extension-character-count';
 import { useAppStore } from '../../store/useAppStore';
 import { useEditorContext } from './EditorContext';
+
+// Add PageBreak extension
+const PageBreak = (options = {}) => {
+    return {
+        name: 'pageBreak',
+        addCommands() {
+            return {
+                insertPageBreak: () => ({ chain }) => {
+                    return chain()
+                        .insertContent({
+                            type: 'pageBreak',
+                        })
+                        .setHardBreak()
+                        .run()
+                },
+            }
+        },
+        addNodeView() {
+            return ({ node }) => {
+                const div = document.createElement('div')
+                div.className = 'page-break'
+                const hr = document.createElement('hr')
+                hr.className = 'page-break-line'
+                div.appendChild(hr)
+                const span = document.createElement('span')
+                span.className = 'page-break-text'
+                span.textContent = 'Page Break'
+                div.appendChild(span)
+                return {
+                    dom: div,
+                }
+            }
+        },
+        addNodeSpec() {
+            return {
+                group: 'block',
+                parseDOM: [{ tag: 'div.page-break' }],
+                toDOM: () => ['div', { class: 'page-break' }, ['hr', { class: 'page-break-line' }], ['span', { class: 'page-break-text' }, 'Page Break']],
+            }
+        },
+    }
+}
 
 const RichTextEditor: React.FC = () => {
     const { currentDocumentId, documents, updateCurrentDocument } = useAppStore();
@@ -32,9 +74,10 @@ const RichTextEditor: React.FC = () => {
                 inline: true,
                 allowBase64: true,
             }),
-            CharacterCount.configure({ // Add this extension
-                limit: null, // No character limit
+            CharacterCount.configure({
+                limit: null,
             }),
+            PageBreak(), // Add page break extension
         ],
         content: currentDoc?.content || '',
         onUpdate: ({ editor }) => {
@@ -42,29 +85,16 @@ const RichTextEditor: React.FC = () => {
         },
         editorProps: {
             attributes: {
-                class: 'prose prose-lg max-w-none focus:outline-none min-h-[800px] px-8 py-10 bg-white shadow-sm mx-auto my-4 border border-gray-200',
+                class: 'prose prose-lg max-w-none focus:outline-none',
             },
         },
     });
 
-    // Handle document switching properly
+    // Handle document switching
     useEffect(() => {
         if (editor && currentDoc) {
             if (previousDocIdRef.current !== currentDocumentId) {
-                // Save cursor position before changing content
-                const selection = editor.state.selection;
-                const wasEmpty = editor.isEmpty;
-
-                // Set new content
                 editor.commands.setContent(currentDoc.content, false);
-
-                // Try to restore cursor position if possible
-                if (!wasEmpty && selection.from <= editor.state.doc.content.size) {
-                    setTimeout(() => {
-                        editor.commands.setTextSelection(Math.min(selection.from, editor.state.doc.content.size));
-                    }, 0);
-                }
-
                 previousDocIdRef.current = currentDocumentId;
             }
         }
@@ -75,6 +105,23 @@ const RichTextEditor: React.FC = () => {
         setEditor(editor);
         return () => setEditor(null);
     }, [editor, setEditor]);
+
+    // Add keyboard shortcut for page break (Ctrl/Cmd + Enter)
+    useEffect(() => {
+        if (!editor) return;
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+                event.preventDefault();
+                editor.commands.insertPageBreak();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [editor]);
 
     if (!editor) {
         return (
@@ -90,15 +137,45 @@ const RichTextEditor: React.FC = () => {
     }
 
     return (
-        <div className="flex-1 bg-gray-100 overflow-y-auto h-full p-8 flex justify-center">
-            <div className="w-full max-w-[816px]"> {/* A4 width approx */}
-                <EditorContent editor={editor} />
+        <div className="flex-1 bg-gray-100 overflow-y-auto h-full py-8 flex justify-center">
+            <div className="w-full max-w-[816px]">
+                {/* Page container */}
+                <div className="relative">
+                    {/* Page shadow effect */}
+                    <div className="page-shadow"></div>
 
-                {/* Debug info - remove in production */}
-                {/* <div className="mt-4 text-xs text-gray-500">
-                    Words: {editor.storage.characterCount?.words?.() || 0} |
-                    Chars: {editor.storage.characterCount?.characters?.() || 0}
-                </div> */}
+                    {/* Actual page */}
+                    <div className="editor-page-container">
+                        <EditorContent editor={editor} />
+
+                        {/* Page number (optional) */}
+                        <div className="page-number">
+                            Page 1
+                        </div>
+                    </div>
+                </div>
+
+                {/* Toolbar for page controls */}
+                <div className="flex justify-center items-center space-x-4 mt-8 hide-in-focus-mode">
+                    <button
+                        onClick={() => editor.commands.insertPageBreak()}
+                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium flex items-center gap-2"
+                        title="Insert Page Break (Ctrl/Cmd + Enter)"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span>Add Page Break</span>
+                    </button>
+
+                    <div className="text-sm text-gray-600">
+                        <span className="font-medium">Tip:</span> Use{" "}
+                        <kbd className="px-2 py-1 bg-gray-100 rounded border text-xs font-mono">Ctrl/Cmd</kbd>
+                        {" "}+{" "}
+                        <kbd className="px-2 py-1 bg-gray-100 rounded border text-xs font-mono">Enter</kbd>
+                        {" "}for quick page breaks
+                    </div>
+                </div>
             </div>
         </div>
     );
