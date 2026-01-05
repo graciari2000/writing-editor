@@ -150,7 +150,7 @@ const StatusBar: React.FC = () => {
     // Add page break
     const addPageBreak = () => {
         if (!editor) return;
-        editor.commands.insertPageBreak();
+        editor.chain().focus().setHorizontalRule().run();
         setCurrentPage(totalPages + 1);
     };
 

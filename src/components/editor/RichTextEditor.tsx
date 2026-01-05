@@ -6,8 +6,30 @@ import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Image from '@tiptap/extension-image';
 import CharacterCount from '@tiptap/extension-character-count';
+import HorizontalRule from '@tiptap/extension-horizontal-rule';
 import { useAppStore } from '../../store/useAppStore';
 import { useEditorContext } from './EditorContext';
+
+// Create a proper PageBreak extension
+const PageBreakExtension = {
+    name: 'pageBreak',
+
+    addCommands() {
+        return {
+            insertPageBreak: () => ({ chain }) => {
+                return chain()
+                    .setHorizontalRule()
+                    .run();
+            },
+        };
+    },
+
+    addKeyboardShortcuts() {
+        return {
+            'Mod-Enter': () => this.editor.commands.insertPageBreak(),
+        };
+    },
+};
 
 const RichTextEditor: React.FC = () => {
     const { currentDocumentId, documents, updateCurrentDocument } = useAppStore();
@@ -18,13 +40,7 @@ const RichTextEditor: React.FC = () => {
 
     const editor = useEditor({
         extensions: [
-            StarterKit.configure({
-                horizontalRule: {
-                    HTMLAttributes: {
-                        class: 'page-break',
-                    },
-                },
-            }),
+            StarterKit,
             Placeholder.configure({
                 placeholder: 'Start writing your novel...',
             }),
@@ -41,6 +57,12 @@ const RichTextEditor: React.FC = () => {
             CharacterCount.configure({
                 limit: null,
             }),
+            HorizontalRule.configure({
+                HTMLAttributes: {
+                    class: 'page-break',
+                },
+            }),
+            PageBreakExtension, // Add our page break extension
         ],
         content: currentDoc?.content || '',
         onUpdate: ({ editor }) => {
@@ -69,15 +91,10 @@ const RichTextEditor: React.FC = () => {
         return () => setEditor(null);
     }, [editor, setEditor]);
 
-    // Function to insert page break
+    // Function to insert page break (for local use)
     const insertPageBreak = () => {
         if (!editor) return;
-
-        // Insert horizontal rule as page break
         editor.chain().focus().setHorizontalRule().run();
-
-        // Add some spacing after the page break
-        editor.chain().focus().insertContent('<p>&nbsp;</p>').run();
     };
 
     // Add keyboard shortcut for page break (Ctrl/Cmd + Enter)

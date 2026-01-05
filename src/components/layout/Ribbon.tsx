@@ -264,7 +264,7 @@ const Ribbon: React.FC = () => {
 
                             <ToolbarButton
                                 onClick={() => {
-                                    editor.chain().focus().insertPageBreak().run();
+                                    editor.chain().focus().setHorizontalRule().run();
                                 }}
                                 label="Page Break"
                             >
