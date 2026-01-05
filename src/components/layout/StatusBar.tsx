@@ -21,19 +21,22 @@ const StatusBar: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [lastSaved, setLastSaved] = useState<string>('');
-    const [pageCount, setPageCount] = useState(1);
 
     // Calculate page breaks and update page count
     const updatePageCount = () => {
         if (!editor) return;
 
         const content = editor.getHTML();
-        // Count page breaks + 1 for the first page
-        const pageBreaks = (content.match(/page-break/g) || []).length;
-        setPageCount(pageBreaks + 1);
 
-        // Update total pages
-        setTotalPages(pageBreaks + 1);
+        // Better method to count page breaks
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = content;
+
+        // Count both .page-break elements and [data-type="page-break"] elements
+        const pageBreaks = tempDiv.querySelectorAll('.page-break, [data-type="page-break"]');
+        const count = pageBreaks.length + 1; // +1 for the first page
+
+        setTotalPages(count);
     };
 
     // Update counts and page info
@@ -103,28 +106,34 @@ const StatusBar: React.FC = () => {
         }
     };
 
-    // Toggle focus mode
+    // Toggle focus mode - Updated for new page structure
     const toggleFocusMode = () => {
         setIsFocusMode(!isFocusMode);
 
         if (!isFocusMode) {
+            // Enter focus mode
             document.body.classList.add('focus-mode');
-            const editorElement = document.querySelector('.ProseMirror');
-            if (editorElement) {
-                editorElement.classList.add('focus-mode-active');
-            }
 
+            // Add focus mode to all pages
+            document.querySelectorAll('.editor-page-container').forEach(el => {
+                el.classList.add('focus-mode-active');
+            });
+
+            // Hide UI elements
             document.querySelectorAll('.ribbon, .sidebar, .status-bar').forEach(el => {
                 (el as HTMLElement).style.opacity = '0';
                 (el as HTMLElement).style.pointerEvents = 'none';
             });
         } else {
+            // Exit focus mode
             document.body.classList.remove('focus-mode');
-            const editorElement = document.querySelector('.ProseMirror');
-            if (editorElement) {
-                editorElement.classList.remove('focus-mode-active');
-            }
 
+            // Remove focus mode from all pages
+            document.querySelectorAll('.editor-page-container').forEach(el => {
+                el.classList.remove('focus-mode-active');
+            });
+
+            // Show UI elements
             document.querySelectorAll('.ribbon, .sidebar, .status-bar').forEach(el => {
                 (el as HTMLElement).style.opacity = '';
                 (el as HTMLElement).style.pointerEvents = '';
@@ -137,20 +146,34 @@ const StatusBar: React.FC = () => {
         if (page < 1 || page > totalPages) return;
         setCurrentPage(page);
 
-        // Scroll to page (simplified - in real app you'd calculate position)
-        const editorElement = document.querySelector('.ProseMirror');
-        if (editorElement) {
-            editorElement.scrollTo({
-                top: (page - 1) * window.innerHeight,
-                behavior: 'smooth'
+        // Scroll to the specific page container
+        const pageContainers = document.querySelectorAll('.page-container');
+        if (pageContainers.length >= page) {
+            pageContainers[page - 1].scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
             });
         }
     };
 
-    // Add page break
+    // Add page break - FIXED VERSION
     const addPageBreak = () => {
         if (!editor) return;
-        editor.commands.insertPageBreak();
+
+        // Try different methods to insert page break
+        if (editor.commands.insertPageBreak) {
+            // Method 1: Use custom page break command if available
+            editor.commands.insertPageBreak();
+        } else if (editor.commands.setHorizontalRule) {
+            // Method 2: Use horizontal rule as page break
+            editor.chain().focus().setHorizontalRule().run();
+        } else {
+            // Method 3: Insert HTML page break
+            const pageBreakHTML = '<div class="page-break" data-type="page-break"><hr class="page-break-line"><span class="page-break-text">Page Break</span></div>';
+            editor.chain().focus().insertContent(pageBreakHTML).run();
+        }
+
+        // Update to the new page
         setCurrentPage(totalPages + 1);
     };
 
@@ -189,6 +212,31 @@ const StatusBar: React.FC = () => {
             document.removeEventListener('keydown', handleKeyDown);
         };
     }, [isFocusMode]);
+
+    // Update current page when scrolling
+    useEffect(() => {
+        const handleScroll = () => {
+            const pageContainers = document.querySelectorAll('.page-container');
+            if (pageContainers.length === 0) return;
+
+            let current = 1;
+            const scrollPosition = window.scrollY + 100; // Offset
+
+            for (let i = 0; i < pageContainers.length; i++) {
+                const rect = pageContainers[i].getBoundingClientRect();
+                const elementTop = rect.top + window.scrollY;
+
+                if (scrollPosition >= elementTop) {
+                    current = i + 1;
+                }
+            }
+
+            setCurrentPage(current);
+        };
+
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
 
     if (!editor) {
         return null;
@@ -238,7 +286,7 @@ const StatusBar: React.FC = () => {
                             onChange={(e) => goToPage(parseInt(e.target.value) || 1)}
                             min={1}
                             max={totalPages}
-                            className="w-10 bg-slate-800 text-center rounded px-1 py-0.5 text-xs"
+                            className="w-10 bg-slate-800 text-center rounded px-1 py-0.5 text-xs border border-slate-600 focus:border-blue-500 focus:outline-none"
                         />
                         <span className="text-slate-400">of</span>
                         <span className="font-medium">{totalPages}</span>
@@ -281,8 +329,8 @@ const StatusBar: React.FC = () => {
                 {/* Focus Mode Button */}
                 <button
                     className={`flex items-center space-x-1 px-2 py-1 rounded transition-colors text-xs ${isFocusMode
-                            ? 'bg-yellow-600 hover:bg-yellow-700'
-                            : 'bg-blue-600 hover:bg-blue-700'
+                        ? 'bg-yellow-600 hover:bg-yellow-700'
+                        : 'bg-blue-600 hover:bg-blue-700'
                         }`}
                     onClick={toggleFocusMode}
                     title={isFocusMode ? "Exit Focus Mode (ESC)" : "Enter Focus Mode"}
@@ -303,8 +351,8 @@ const StatusBar: React.FC = () => {
                 {/* Full Screen Button */}
                 <button
                     className={`flex items-center space-x-1 px-2 py-1 rounded transition-colors text-xs ${isFullscreen
-                            ? 'bg-purple-700 hover:bg-purple-800'
-                            : 'bg-purple-600 hover:bg-purple-700'
+                        ? 'bg-purple-700 hover:bg-purple-800'
+                        : 'bg-purple-600 hover:bg-purple-700'
                         }`}
                     onClick={toggleFullscreen}
                     title={isFullscreen ? "Exit Full Screen" : "Enter Full Screen"}

@@ -335,3 +335,160 @@ body.focus-mode .hide-in-focus-mode {
     background: rgba(59, 130, 246, 0.1);
     border-left: 3px solid #3b82f6;
 }
+
+/* =============== MICROSOFT WORD-STYLE PAGE BREAKS =============== */
+
+/* Page break styling */
+.page-break {
+    position: relative;
+    margin: 2rem 0;
+    text-align: center;
+    height: 1px;
+    min-height: 1px;
+    background: transparent;
+    border: none;
+    page-break-after: always;
+    break-after: page;
+}
+
+.page-break-line {
+    border: none;
+    border-top: 2px dashed #cbd5e0;
+    width: 100%;
+    margin: 1.5rem 0;
+    position: relative;
+}
+
+.page-break-text {
+    background: white;
+    padding: 0.25rem 0.75rem;
+    color: #718096;
+    font-size: 0.75rem;
+    font-style: italic;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border: 1px solid #e2e8f0;
+    border-radius: 3px;
+    z-index: 10;
+}
+
+/* Page container */
+.page-container {
+    margin-bottom: 2rem;
+    position: relative;
+}
+
+/* Microsoft Word-like page appearance */
+.editor-page-container {
+    background: white;
+    min-height: 1123px; /* A4 height */
+    width: 794px; /* A4 width */
+    margin: 0 auto;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    position: relative;
+    page-break-after: always;
+    break-after: page;
+}
+
+/* Print styles for real page breaks */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    
+    .page-container, .page-container * {
+        visibility: visible;
+    }
+    
+    .editor-page-container {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        box-shadow: none;
+        margin: 0;
+        page-break-after: always;
+        break-after: page;
+    }
+    
+    .page-break {
+        display: none; /* Hide page break markers in print */
+    }
+    
+    /* Ensure content doesn't cross page boundaries */
+    .editor-page-container {
+        overflow: hidden;
+    }
+    
+    /* Hide UI elements */
+    .ribbon, .sidebar, .status-bar,
+    .page-controls, .add-page-button {
+        display: none !important;
+    }
+}
+
+/* Focus mode adjustments */
+body.focus-mode .editor-page-container {
+    background: #2d3748;
+    color: #e2e8f0;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+body.focus-mode .page-break-text {
+    background: #2d3748;
+    color: #a0aec0;
+    border-color: #4a5568;
+}
+
+body.focus-mode .page-break-line {
+    border-color: #4a5568;
+}
+
+/* Page numbers */
+.page-number {
+    position: absolute;
+    bottom: 1.5rem;
+    right: 2rem;
+    font-size: 0.75rem;
+    color: #718096;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Microsoft Word-like selection */
+.ProseMirror-selectednode {
+    outline: 2px solid #68cef8;
+}
+
+/* Word-like cursor */
+.ProseMirror {
+    caret-color: #000000;
+}
+
+/* Word-like paragraph spacing */
+.ProseMirror p {
+    margin-bottom: 0.75rem;
+    line-height: 1.5;
+}
+
+/* Word-like headings */
+.ProseMirror h1 {
+    font-size: 2rem;
+    font-weight: 600;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.ProseMirror h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-top: 1.25rem;
+    margin-bottom: 0.75rem;
+}
+
+.ProseMirror h3 {
+    font-size: 1.17rem;
+    font-weight: 600;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+}

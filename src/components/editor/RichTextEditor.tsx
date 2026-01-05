@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -6,35 +6,51 @@ import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import Image from '@tiptap/extension-image';
 import CharacterCount from '@tiptap/extension-character-count';
-import HorizontalRule from '@tiptap/extension-horizontal-rule';
 import { useAppStore } from '../../store/useAppStore';
 import { useEditorContext } from './EditorContext';
+import { PageBreak } from '../../extensions/PageBreak';
 
-// Create a proper PageBreak extension
-const PageBreakExtension = {
-    name: 'pageBreak',
+// Helper to split content into pages
+const splitContentIntoPages = (content: string) => {
+    const pages = [];
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = content;
 
-    addCommands() {
-        return {
-            insertPageBreak: () => ({ chain }) => {
-                return chain()
-                    .setHorizontalRule()
-                    .run();
-            },
-        };
-    },
+    let currentPage = '';
+    const pageBreaks = tempDiv.querySelectorAll('.page-break, [data-type="page-break"]');
 
-    addKeyboardShortcuts() {
-        return {
-            'Mod-Enter': () => this.editor.commands.insertPageBreak(),
-        };
-    },
+    if (pageBreaks.length === 0) {
+        return [content]; // Single page
+    }
+
+    // Split by page breaks
+    let lastIndex = 0;
+    pageBreaks.forEach((breakEl, index) => {
+        const html = content;
+        const breakStr = breakEl.outerHTML;
+        const breakIndex = html.indexOf(breakStr, lastIndex);
+
+        if (breakIndex > -1) {
+            const pageContent = html.substring(lastIndex, breakIndex);
+            pages.push(pageContent);
+            lastIndex = breakIndex + breakStr.length;
+        }
+    });
+
+    // Add remaining content
+    if (lastIndex < content.length) {
+        pages.push(content.substring(lastIndex));
+    }
+
+    return pages;
 };
 
 const RichTextEditor: React.FC = () => {
     const { currentDocumentId, documents, updateCurrentDocument } = useAppStore();
     const { setEditor } = useEditorContext();
     const previousDocIdRef = useRef<string | null>(null);
+    const [pages, setPages] = useState<string[]>([]);
+    const [currentPage, setCurrentPage] = useState(1);
 
     const currentDoc = documents.find((d) => d.id === currentDocumentId);
 
@@ -57,20 +73,22 @@ const RichTextEditor: React.FC = () => {
             CharacterCount.configure({
                 limit: null,
             }),
-            HorizontalRule.configure({
+            PageBreak.configure({
                 HTMLAttributes: {
                     class: 'page-break',
                 },
             }),
-            PageBreakExtension, // Add our page break extension
         ],
         content: currentDoc?.content || '',
         onUpdate: ({ editor }) => {
-            updateCurrentDocument(editor.getHTML());
+            const content = editor.getHTML();
+            updateCurrentDocument(content);
+            const newPages = splitContentIntoPages(content);
+            setPages(newPages);
         },
         editorProps: {
             attributes: {
-                class: 'prose prose-lg max-w-none focus:outline-none',
+                class: 'prose prose-lg max-w-none focus:outline-none min-h-full',
             },
         },
     });
@@ -80,10 +98,21 @@ const RichTextEditor: React.FC = () => {
         if (editor && currentDoc) {
             if (previousDocIdRef.current !== currentDocumentId) {
                 editor.commands.setContent(currentDoc.content, false);
+                const newPages = splitContentIntoPages(currentDoc.content);
+                setPages(newPages);
                 previousDocIdRef.current = currentDocumentId;
             }
         }
     }, [currentDocumentId, currentDoc, editor]);
+
+    // Update pages when content changes
+    useEffect(() => {
+        if (editor) {
+            const content = editor.getHTML();
+            const newPages = splitContentIntoPages(content);
+            setPages(newPages);
+        }
+    }, [editor]);
 
     // Update editor context
     useEffect(() => {
@@ -91,13 +120,13 @@ const RichTextEditor: React.FC = () => {
         return () => setEditor(null);
     }, [editor, setEditor]);
 
-    // Function to insert page break (for local use)
+    // Insert page break function
     const insertPageBreak = () => {
         if (!editor) return;
         editor.commands.insertPageBreak();
     };
 
-    // Add keyboard shortcut for page break (Ctrl/Cmd + Enter)
+    // Keyboard shortcut
     useEffect(() => {
         if (!editor) return;
 
@@ -129,25 +158,30 @@ const RichTextEditor: React.FC = () => {
 
     return (
         <div className="flex-1 bg-gray-100 overflow-y-auto h-full py-8 flex justify-center">
-            <div className="w-full max-w-[816px]">
-                {/* Page container */}
-                <div className="relative">
-                    {/* Page shadow effect */}
-                    <div className="page-shadow"></div>
+            <div className="w-full max-w-[816px] space-y-8">
+                {/* Render each page as a separate container */}
+                {pages.map((pageContent, index) => (
+                    <div key={index} className="relative page-container">
+                        {/* Page shadow effect */}
+                        <div className="page-shadow"></div>
 
-                    {/* Actual page */}
-                    <div className="editor-page-container">
-                        <EditorContent editor={editor} />
+                        {/* Actual page */}
+                        <div className="editor-page-container">
+                            <div
+                                className="prose prose-lg max-w-none focus:outline-none min-h-[1056px] p-12"
+                                dangerouslySetInnerHTML={{ __html: pageContent }}
+                            />
 
-                        {/* Page number (optional) */}
-                        <div className="page-number">
-                            Page 1
+                            {/* Page number */}
+                            <div className="page-number">
+                                Page {index + 1}
+                            </div>
                         </div>
                     </div>
-                </div>
+                ))}
 
                 {/* Toolbar for page controls */}
-                <div className="flex justify-center items-center space-x-4 mt-8 hide-in-focus-mode">
+                <div className="flex justify-center items-center space-x-4 mt-4 hide-in-focus-mode">
                     <button
                         onClick={insertPageBreak}
                         className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium flex items-center gap-2"
@@ -156,7 +190,7 @@ const RichTextEditor: React.FC = () => {
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                         </svg>
-                        <span>Add Page Break</span>
+                        <span>Insert Page Break</span>
                     </button>
 
                     <div className="text-sm text-gray-600">

@@ -46,8 +46,29 @@ const Ribbon: React.FC = () => {
 
     const Separator = () => <div className="w-px h-10 bg-gray-300 mx-2" />;
 
+    // Function to insert page break with fallbacks
+    const insertPageBreak = () => {
+        if (!editor) return;
+
+        // Method 1: Try custom page break command if available
+        if (editor.commands.insertPageBreak) {
+            editor.commands.insertPageBreak();
+            return;
+        }
+
+        // Method 2: Use horizontal rule as page break
+        if (editor.commands.setHorizontalRule) {
+            editor.chain().focus().setHorizontalRule().run();
+            return;
+        }
+
+        // Method 3: Insert HTML page break directly
+        const pageBreakHTML = '<div class="page-break" data-type="page-break"><hr class="page-break-line"><span class="page-break-text">Page Break</span></div>';
+        editor.chain().focus().insertContent(pageBreakHTML).run();
+    };
+
     return (
-        <div className="flex flex-col w-full bg-white border-b border-gray-300 shadow-sm z-10">
+        <div className="ribbon flex flex-col w-full bg-white border-b border-gray-300 shadow-sm z-10">
             {/* Ribbon Tabs */}
             <div className="flex bg-slate-800 text-white px-2 justify-between items-center">
                 <div className="flex items-center">
@@ -263,9 +284,7 @@ const Ribbon: React.FC = () => {
                             </ToolbarButton>
 
                             <ToolbarButton
-                                onClick={() => {
-                                    editor.commands.insertPageBreak();
-                                }}
+                                onClick={insertPageBreak}
                                 label="Page Break"
                             >
                                 <FilePlus size={20} />
