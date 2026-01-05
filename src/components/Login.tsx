@@ -40,6 +40,7 @@ const Login: React.FC = () => {
             <form
                 onSubmit={handleSubmit}
                 className="bg-white p-6 rounded shadow-md w-80"
+                noValidate
             >
                 <h2 className="text-2xl font-bold mb-4">
                     {isRegistering ? "Register" : "Login"}
@@ -53,43 +54,55 @@ const Login: React.FC = () => {
 
                 {isRegistering && (
                     <div className="mb-4">
-                        <label className="block text-sm font-medium mb-1">Name</label>
+                        <label className="block text-sm font-medium mb-1" htmlFor="name">
+                            Name
+                        </label>
                         <input
                             type="text"
+                            id="name"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             className="w-full border border-gray-300 rounded px-3 py-2"
                             required={isRegistering}
+                            autoComplete="name"
                         />
                     </div>
                 )}
 
                 <div className="mb-4">
-                    <label className="block text-sm font-medium mb-1">Email</label>
+                    <label className="block text-sm font-medium mb-1" htmlFor="email">
+                        Email
+                    </label>
                     <input
                         type="email"
+                        id="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         className="w-full border border-gray-300 rounded px-3 py-2"
                         required
+                        autoComplete="email"
                     />
                 </div>
 
-                <div className="mb-4">
-                    <label className="block text-sm font-medium mb-1">Password</label>
+                <div className="mb-6">
+                    <label className="block text-sm font-medium mb-1" htmlFor="password">
+                        Password
+                    </label>
                     <input
                         type="password"
+                        id="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         className="w-full border border-gray-300 rounded px-3 py-2"
                         required
                         minLength={6}
+                        autoComplete={isRegistering ? "new-password" : "current-password"}
                     />
                 </div>
 
                 <button
                     type="submit"
-                    className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     disabled={!email || !password || (isRegistering && !name)}
                 >
                     {isRegistering ? "Register" : "Log In"}
@@ -101,6 +114,15 @@ const Login: React.FC = () => {
                         setIsRegistering(!isRegistering);
                         setError("");
                         setName("");
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            setIsRegistering(!isRegistering);
+                            setError("");
+                            setName("");
+                        }
                     }}
                 >
                     {isRegistering

@@ -61,6 +61,7 @@ const Profile: React.FC = () => {
                         onClick={handleBackToHome}
                         className="text-gray-600 hover:text-gray-800 transition duration-200 mr-4 p-2 hover:bg-gray-100 rounded-full"
                         aria-label="Back to home"
+                        type="button"
                     >
                         ← Back
                     </button>
@@ -81,15 +82,17 @@ const Profile: React.FC = () => {
 
                 {/* Name Input */}
                 <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="profile-name">
                         Display Name
                     </label>
                     <input
                         type="text"
+                        id="profile-name"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
                         placeholder="Enter your name"
+                        autoComplete="name"
                     />
                 </div>
 
@@ -102,6 +105,7 @@ const Profile: React.FC = () => {
                             ? "bg-gray-300 cursor-not-allowed text-gray-500"
                             : "bg-blue-500 hover:bg-blue-600 text-white"
                             }`}
+                        type="button"
                     >
                         {isLoading ? "Saving..." : "Save Changes"}
                     </button>
@@ -109,6 +113,7 @@ const Profile: React.FC = () => {
                     <button
                         onClick={handleBackToHome}
                         className="w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition"
+                        type="button"
                     >
                         Back to Home
                     </button>
@@ -116,6 +121,7 @@ const Profile: React.FC = () => {
                     <button
                         onClick={handleLogout}
                         className="w-full py-2 px-4 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition"
+                        type="button"
                     >
                         Logout
                     </button>
